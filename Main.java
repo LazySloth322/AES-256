@@ -20,7 +20,7 @@ public class Main {
 
     private static byte[] paddingFiller(byte[] byteData){
         int bdLen = byteData.length;
-        int paddingLen = 16 - (bdLen % 16);
+        int paddingLen = 16 - (bdLen % 16);//full 16byte block added to prevent payload deletion
 
         byte[] paddedArray = new byte[bdLen + paddingLen];
         System.arraycopy(byteData,0,paddedArray,0,byteData.length);
@@ -34,15 +34,21 @@ public class Main {
 
     private static byte[] paddingRemover(byte[] byteData){
         int bdLen = byteData.length;
+        int paddingLen = byteData[bdLen - 1] & 0xFF;
 
-        if(byteData[bdLen - (int) byteData[bdLen - 1]] == byteData[bdLen - 1]){
-            int paddingLen = (int) byteData[bdLen - 1];
-            byte[] cleanedArray = new byte[bdLen-paddingLen];
-            System.arraycopy(byteData,0,cleanedArray,0,cleanedArray.length);
-            return cleanedArray;
-        }else{
+        if (paddingLen == 0 || paddingLen > 16) {
             return byteData;
         }
+
+        for (int i = 0; i < paddingLen; i++) {
+            if ((byteData[bdLen - 1 - i] & 0xFF) != paddingLen) {
+                return byteData; //incorrect padding detected
+            }
+        }
+
+        byte[] cleanedArray = new byte[bdLen - paddingLen];
+        System.arraycopy(byteData, 0, cleanedArray, 0, cleanedArray.length);
+        return cleanedArray;
     }
 
     public static void main(String[] args) {
@@ -62,7 +68,7 @@ public class Main {
 
             //two instances of AES - bad
             if (mode == 1){
-                System.out.print("encrypt\n");
+                System.out.print("Selected mode: encrypt\n");
 
                 byteData = paddingFiller(byteData);
                 AES aes = new AES(byteKey,byteData);
@@ -72,7 +78,7 @@ public class Main {
                 if(!(byteData.length%16==0)){
                     throw new IllegalArgumentException("Input data must be a multiple of 16.");
                 }
-                System.out.print("decrypt\n");
+                System.out.print("Selected mode: decrypt\n");
 
                 AES aes = new AES(byteKey,byteData);
                 c = paddingRemover(aes.decrypt());
